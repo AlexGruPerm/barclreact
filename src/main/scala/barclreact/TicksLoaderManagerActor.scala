@@ -16,11 +16,13 @@ class TicksLoaderManagerActor extends Actor {
     //ConfigFactory.load(s"application.conf")
     ConfigFactory.load()
   } catch {
-    case te: Throwable => {
+    case te: Throwable =>
+    {
       log.error("ConfigFactory.load (1) - cause:"+te.getCause+" msg:"+te.getMessage)
       throw te
     }
-    case e:Exception => {
+    case e:Exception =>
+    {
       log.error("ConfigFactory.load (2) - cause:"+e.getCause+" msg:"+e.getMessage)
       throw e
     }
