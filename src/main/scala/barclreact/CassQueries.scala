@@ -1,4 +1,4 @@
-package ticksloader
+package barclreact
 
 trait CassQueries {
 

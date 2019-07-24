@@ -27,7 +27,7 @@ assemblyMergeStrategy in assembly := {
   case x => MergeStrategy.first
 }
 
-assemblyJarName in assembly :="barcl.jar"
+assemblyJarName in assembly :="barclreact.jar"
 mainClass in (Compile, packageBin) := Some("bcapp.BarsCalcApp")
 mainClass in (Compile, run) := Some("bcapp.BarsCalcApp")
 

@@ -1,4 +1,4 @@
-package ticksloader
+package barclreact
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
@@ -8,12 +8,11 @@ import com.typesafe.config.{Config, ConfigFactory}
   *  This is a main Actor that manage child Actors (load ticks by individual ticker_id)
   *  Created ans called by message "begin load" from Main app.
   */
-class TicksLoaderManagerActor extends Actor {
+class BarCalculatorManagerActor extends Actor {
   val log = Logging(context.system, this)
 
-  val config :Config = //ConfigFactory.load(s"application.conf")
+  val config :Config =
     try {
-    //ConfigFactory.load(s"application.conf")
     ConfigFactory.load()
   } catch {
     case te: Throwable =>
@@ -31,14 +30,12 @@ class TicksLoaderManagerActor extends Actor {
     /**
       * If the gap is more then readByHours than read by this interval or all ticks.
       */
-    val readByMinutes :Int = config.getInt("loader.load-property.read-by-minutes")
+    val readByMinutes :Int = config.getInt("cassandra.load-property.read-by-minutes")
     log.info("Config loaded successful readByMinutes="+readByMinutes)
 
-    //todo: replace this 2 blocks on 2 methods or remove exception blocks into method.
-
-    val (sessSrc :CassSessionSrc.type,sessDest :CassSessionDest.type)  =
+    val sess :CassSessionInstance.type  =
       try {
-        (CassSessionSrc,CassSessionDest)
+        CassSessionInstance
       } catch {
         case s: com.datastax.oss.driver.api.core.servererrors.SyntaxError => {
           log.error("[0] ERROR when get CassSessionXXX SyntaxError - msg="+s.getMessage+" cause="+s.getCause)
@@ -77,7 +74,6 @@ class TicksLoaderManagerActor extends Actor {
     }
 
     override def receive: Receive = {
-    //case "stop" => context.stop(self)
     case "begin load" => context.actorOf(TickersDictActor.props(sessSrc), "TickersDictActor") ! "get"
     case ("ticks_saved", thisTicker :Ticker) => sender ! ("run", thisTicker,readByMinutes)
     case seqTickers :Seq[Ticker] => proccessTickers(sender,seqTickers)
