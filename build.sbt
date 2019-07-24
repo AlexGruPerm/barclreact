@@ -2,6 +2,7 @@ name := "barcl"
 scalaVersion := "2.12.4"
 version := "1.0"
 
+
 resolvers ++= Seq(
   "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
 )
@@ -28,6 +29,6 @@ assemblyMergeStrategy in assembly := {
 }
 
 assemblyJarName in assembly :="barclreact.jar"
-mainClass in (Compile, packageBin) := Some("bcapp.BarsCalcApp")
-mainClass in (Compile, run) := Some("bcapp.BarsCalcApp")
+mainClass in (Compile, packageBin) := Some("barclreact.MainBarCalculator")
+mainClass in (Compile, run) := Some("barclreact.MainBarCalculator")
 

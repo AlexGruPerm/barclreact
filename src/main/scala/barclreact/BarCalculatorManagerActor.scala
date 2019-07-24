@@ -1,87 +1,58 @@
 package barclreact
 
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.event.Logging
+import com.typesafe.config.Config
+
+import scala.concurrent.duration._
+/*
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
+import scala.concurrent.duration._
+*/
 
 /**
-  *  This is a main Actor that manage child Actors (load ticks by individual ticker_id)
-  *  Created ans called by message "begin load" from Main app.
+  *  This is a main Actor that manage child Actors
+  *  Created and called by message "calculate" from Main app.
   */
-class BarCalculatorManagerActor extends Actor {
+class BarCalculatorManagerActor(config :Config, sess :CassSessionInstance.type) extends Actor {
   val log = Logging(context.system, this)
+  log.info("Basic constructor of Actor BarCalculatorManagerActor.")
+  val readByMins :Int = config.getInt("cassandra.read-property.read-by-minutes")
+  log.info(s"On each iteration of calculation we will read new ticks recursively by readByMins = $readByMins mis.")
 
-  val config :Config =
-    try {
-    ConfigFactory.load()
-  } catch {
-    case te: Throwable =>
-    {
-      log.error("ConfigFactory.load (1) - cause:"+te.getCause+" msg:"+te.getMessage)
-      throw te
+  import scala.concurrent.ExecutionContext.Implicits.global
+  override def receive: Receive = {
+    //from Main application
+    case "calculate" => {
+      log.info("Get 'calculate' message. Read tickers and bws from DB. Create child actors :CalcActor")
+      val seqTickerBws :Seq[TickerBws] = sess.getTickersWithBws
+      proccessTickers(sender,seqTickerBws)
     }
-    case e:Exception =>
-    {
-      log.error("ConfigFactory.load (2) - cause:"+e.getCause+" msg:"+e.getMessage)
-      throw e
+    //responses from child actors.
+    case DoneResponse(command, tickerBws, lastBar, sleepMsBeforeNextCalc, respondTo)  if command=="done" => {
+      log.info("Back message 'done' from child "+tickerBws.getActorName+s" wants sleep $sleepMsBeforeNextCalc ms.")
+      ActorSystem("BCSystem").scheduler
+        .scheduleOnce(sleepMsBeforeNextCalc millisecond, respondTo, RunRequest("calc",tickerBws,None,context.self))
     }
+
+    case _ => log.info(getClass.getName +" Unknown message from ["+sender.path.name+"]")
   }
 
-    /**
-      * If the gap is more then readByHours than read by this interval or all ticks.
-      */
-    val readByMinutes :Int = config.getInt("cassandra.load-property.read-by-minutes")
-    log.info("Config loaded successful readByMinutes="+readByMinutes)
 
-    val sess :CassSessionInstance.type  =
-      try {
-        CassSessionInstance
-      } catch {
-        case s: com.datastax.oss.driver.api.core.servererrors.SyntaxError => {
-          log.error("[0] ERROR when get CassSessionXXX SyntaxError - msg="+s.getMessage+" cause="+s.getCause)
-        }
-        case c: CassConnectException => {
-          log.error("[1] ERROR when get CassSessionXXX ["+c.getMessage+"] Cause["+c.getCause+"]")
-          throw c
-        }
-        case de : com.datastax.oss.driver.api.core.DriverTimeoutException =>
-          log.error("[2] ERROR when get CassSessionXXX ["+de.getMessage+"] ["+de.getCause+"] "+de.getExecutionInfo.getErrors)
-          throw de
-        case ei : java.lang.ExceptionInInitializerError =>
-          log.error("[3] ERROR when get CassSessionXXX ["+ei.getMessage+"] ["+ei.getCause+"] "+ei.printStackTrace())
-          throw ei
-        case e: Throwable =>
-          log.error("[4] ERROR when get CassSessionXXX ["+e.getMessage+"] class=["+e.getClass.getName+"]")
-          throw e
+    def proccessTickers(sender :ActorRef, seqTickers :Seq[TickerBws]):Unit =
+      seqTickers.withFilter(t => t.ticker.tickerId==1 && t.bws==30)
+        .foreach{thisTickerBws =>
+        log.info("Creation Actor for "+thisTickerBws.ticker.tickerCode+" bws = "+thisTickerBws.bws)
+        val thisCalcActor = context.actorOf(CalcActor.props(sess), thisTickerBws.getActorName)
+        thisCalcActor ! RunRequest("run",thisTickerBws,None,context.self)
       }
-
-    def proccessTickers(sender :ActorRef, seqTickers :Seq[Ticker]) = {
-      //log.info("TicksLoaderManagerActor receive ["+seqTickers.size+"] tickers from "+sender.path.name+" first is "+seqTickers(0).tickerCode)
-
-      //Creation Actors for each ticker and run it all.
-      seqTickers.foreach{ticker =>
-        log.info("Creation Actor for - ["+ticker.tickerCode+"]")
-        context.actorOf(IndividualTickerLoader.props(sessSrc,sessDest), "IndividualTickerLoader"+ticker.tickerId)
-      }
-
-      seqTickers.foreach{
-        ticker =>
-          log.info("run Actor IndividualTickerLoader"+ticker.tickerId+" for ["+ticker.tickerCode+"]")
-          context.actorSelection("/user/TicksLoaderManagerActor/IndividualTickerLoader"+ticker.tickerId) !
-            ("run", ticker, readByMinutes)
-          Thread.sleep(300)
-      }
-    }
-
-    override def receive: Receive = {
-    case "begin load" => context.actorOf(TickersDictActor.props(sessSrc), "TickersDictActor") ! "get"
-    case ("ticks_saved", thisTicker :Ticker) => sender ! ("run", thisTicker,readByMinutes)
-    case seqTickers :Seq[Ticker] => proccessTickers(sender,seqTickers)
-    case _ => log.info(getClass.getName +" unknown message.")
-  }
 
 }
 
-object TicksLoaderManagerActor {
-  def props: Props = Props(new TicksLoaderManagerActor)
+
+
+object BarCalculatorManagerActor {
+  def props(config :Config, sess :CassSessionInstance.type ): Props = Props(new BarCalculatorManagerActor(config,sess))
 }

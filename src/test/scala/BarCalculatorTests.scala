@@ -1,21 +1,21 @@
-import com.datastax.driver.core.exceptions.NoHostAvailableException
-import db.DBCass
 import org.scalatest.FunSuite
 import org.slf4j.LoggerFactory
 
-class CassConnectTest extends FunSuite {
+class BarCalculatorTests extends FunSuite {
   val logger = LoggerFactory.getLogger(getClass.getName)
 
-
+/*
   test("1. CassConnect.getSession Correct IP") {
     assert(new DBCass("10.241.5.234","cassandra").getTrySession.isSuccess)
   }
+
 
   test("2. CassConnect.getSession Incorrect IP") {
     intercept[NoHostAvailableException] {
       new DBCass("10.241.5.23", "cassandra").getTrySession
     }
   }
+*/
 
   /*
   test("3. QueriesBinds created with closed session should throw IllegalArgumentException") {

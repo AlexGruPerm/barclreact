@@ -2,12 +2,12 @@ package barclreact
 
 import java.net.InetSocketAddress
 import java.time.LocalDate
+
 import com.datastax.oss.driver.api.core.CqlSession
-import com.datastax.oss.driver.api.core.cql.{BoundStatement, Row}
+import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.typesafe.config.{Config, ConfigFactory}
-import org.slf4j.LoggerFactory
-import scala.annotation.tailrec
 import scala.collection.JavaConverters._
+import org.slf4j.LoggerFactory
 
 trait CassSession extends CassQueries {
   val log = LoggerFactory.getLogger(getClass.getName)
@@ -24,7 +24,6 @@ trait CassSession extends CassQueries {
       .addContactPoint(new InetSocketAddress(node, port))
       .withLocalDatacenter(dc).build()
 
-  //todo: add here try except for misprinting sqls!
   def prepareSql(sess :CqlSession,sqlText :String) :BoundStatement =
     try {
       sess.prepare(sqlText).bind()
@@ -38,69 +37,67 @@ trait CassSession extends CassQueries {
 
 object CassSessionInstance extends CassSession{
   private val (node :String,dc :String) = getNodeAddressDc("src")
-  log.debug("CassSessionSrc ip-dc = "+node+" - "+dc)
+  log.info("CassSessionInstance DB Address : "+node+" - "+dc)
   val sess :CqlSession = createSession(node,dc)
 
-  val prepFirstDdateTickSrc :BoundStatement = prepareSql(sess,sqlFirstDdateTick)
-  val prepFirstTsSrc :BoundStatement = prepareSql(sess,sqlFirstTsFrom)
-  val prepMaxDdateSrc :BoundStatement = prepareSql(sess,sqlMaxDdate)
-  val prepMaxTsSrc :BoundStatement = prepareSql(sess,sqlMaxTs)
-  val prepReadTicksSrc :BoundStatement = prepareSql(sess,sqlReadTicks).setIdempotent(true)
-  val prepReadTicksSrcWholeDate :BoundStatement = prepareSql(sess, sqlReadTicksWholeDate).setIdempotent(true)
+  private val prepBCalcProps :BoundStatement = prepareSql(sess,sqlBCalcProps)
+  private val prepTickers :BoundStatement = prepareSql(sess,sqlTickers)
+  private val prepFirstTickTs :BoundStatement = prepareSql(sess,sqlFirstTickTs)
+  private val prepFirstTicksDdates :BoundStatement = prepareSql(sess,sqlFirstTicksDdates)
 
-  //todo: maybe add here local cache (with key - tickerId) to eliminate unnecessary DB queries.
-  def getMinExistDdateSrc(tickerId :Int) :LocalDate =
-    sess.execute(prepFirstDdateTickSrc
-      .setInt("tickerID",tickerId))
-      .one().getLocalDate("ddate")
+  private def getAllBarsProperties : Seq[BarCalcProperty] =
+    sess.execute(prepBCalcProps).all().iterator.asScala.map(
+      row => BarCalcProperty(
+        row.getInt("ticker_id"),
+        row.getInt("bar_width_sec"),
+        row.getInt("is_enabled")
+      )).toList.filter(bp => bp.isEnabled==1)
 
-  //todo: maybe add here local cache (with key - tickerId+thisDate) to eliminate unnecessary DB queries.
-  def getFirstTsForDateSrc(tickerId :Int, thisDate :LocalDate) :Long =
-    sess.execute(prepFirstTsSrc
-      .setInt("tickerID", tickerId)
-      .setLocalDate("minDdate",thisDate))
-      .one().getLong("ts")
+  private def getFirstDbTsunx(tickerId :Int, thisDdate :LocalDate) :Long =
+    sess.execute(prepFirstTickTs
+      .setInt("tickerId",tickerId)
+      .setLocalDate("pDdate",thisDdate))
+      .one().getLong("db_tsunx")
 
-  def getMaxDdate(tickerID :Int) :LocalDate =
-    sess.execute(prepMaxDdateSrc
-      .setInt("tickerID",tickerID))
-      .one().getLocalDate("ddate")
+  private def getFirstTicksMeta : Seq[Ticker] = {
+     val tMetaFirstTicks :Seq[FirstTick] = sess.execute(prepFirstTicksDdates)
+        .all().iterator.asScala
+        .map { row =>
+          val thisTickerID :Int = row.getInt("ticker_id")
+          val thisDdate :LocalDate = row.getLocalDate("ddate")
+          FirstTick(
+            thisTickerID,
+            thisDdate,
+            getFirstDbTsunx(thisTickerID, thisDdate)
+          )
+        }.toSeq
 
-  def getMaxTs(tickerID :Int,thisDdate :LocalDate) :Long =
-    sess.execute(prepMaxTsSrc
-      .setInt("tickerID",tickerID)
-      .setLocalDate("maxDdate",thisDdate))
-      .one().getLong("ts")
-
-  val rowToTick :(Row => Tick) = (row: Row) =>
-    Tick(
-      row.getInt("ticker_id"),
-      row.getLocalDate("ddate"),
-      row.getLong("ts"),
-      row.getLong("db_tsunx"),
-      row.getDouble("ask"),
-      row.getDouble("bid")
-    )
-
-
-  @tailrec def getTicksSrc(tickerId :Int, thisDate :LocalDate, fromTs :Long) :Seq[Tick] = {
-
-   val st :Seq[Tick] =
-     if (fromTs != 0L)
-     sess.execute(prepReadTicksSrc
-      .setInt("tickerID", tickerId)
-      .setLocalDate("readDate", thisDate)
-      .setLong("fromTs", fromTs)).all().iterator.asScala.toSeq.map(rowToTick).toList
-    else
-     sess.execute(prepReadTicksSrcWholeDate
-       .setInt("tickerID", tickerId)
-       .setLocalDate("readDate", thisDate)
-     ).all().iterator.asScala.toSeq.map(rowToTick).toList
-
-    if (st.nonEmpty) st
-    else
-      getTicksSrc(tickerId,thisDate.plusDays(1),0L)//fromTs)
+    sess.execute(prepTickers)
+      .all().iterator.asScala.map(row => (row.getInt("ticker_id"),row.getString("ticker_code")))
+      .toList.sortBy(t => t)
+      .map { thisTicker =>
+        val (tickerID: Int, tickerCode: String) = thisTicker //for readability
+        Ticker(
+          tickerID,
+          tickerCode,
+          tMetaFirstTicks.find(_.tickerId == tickerID).map(_.minDdateSrc),
+          tMetaFirstTicks.find(_.tickerId == tickerID).map(_.minTsSrc).getOrElse(0L)
+        )
+      }
   }
+
+
+  /**
+    * We need Leave only tickers for which exists bar property
+    *
+    */
+  def getTickersWithBws :Seq[TickerBws] =
+    getFirstTicksMeta
+      .flatMap(thisTicker =>
+        getAllBarsProperties.collect{
+          case bp if bp.tickerId == thisTicker.tickerId => TickerBws(thisTicker,bp.bws)
+        }
+      )
 
 
 }
