@@ -18,6 +18,11 @@ import org.slf4j.LoggerFactory
   *
   * Pay attention on article : https://www.chrisstucchio.com/blog/2013/actors_vs_futures.html
   *
+  *  select max(db_tsunx) from mts_src.ticks where ticker_id=1 and ddate='2019-07-25';
+  *  cassandra DB unixts 1564049820
+  *  utc                 1564049823
+  *  no difference
+  *  https://www.unixtimestamp.com
 */
 object MainBarCalculator extends App {
   val log = LoggerFactory.getLogger(getClass.getName)
@@ -64,11 +69,13 @@ object MainBarCalculator extends App {
   require(!sessInstance.sess.isClosed, "Cassandra session must be opened.")
 
   val system = ActorSystem("BCSystem")
-  log.info(s"Actor system created. startTime=${system.startTime}")
+  log.info(s"Actor system created. startTime = ${system.startTime}")
   val MainBcActor = system.actorOf(BarCalculatorManagerActor.props(config,sessInstance), "BCManagerActor")
-  log.info(s"Main bar calculator Actor (BCManagerActor) created. path.name=${MainBcActor.path.name}")
+  log.info(s"Main bar calculator Actor (BCManagerActor) created. path.name = ${MainBcActor.path.name}")
   log.info("Run BCManagerActor with sending 'calculate' message.")
   MainBcActor ! "calculate"
+
+  //setFetchSize() try for read ticks.
 
   log.info("========================================== END ============================================")
 }

@@ -4,6 +4,31 @@ import java.time.LocalDate
 
 import akka.actor.ActorRef
 
+case class seqTicksWithReadDuration(seqTicks :Seq[Tick], durationMs :Long) {
+  def getTickStat :String =
+   s"SIZE = ${seqTicks.size} FISRT = ${seqTicks.head} LAST = ${seqTicks.last} WIDTH = ${(seqTicks.last.dbTsunx-seqTicks.head.dbTsunx)/1000L} sec.  DUR : $durationMs ms."
+}
+
+case class seqTicksObj(
+                        sqTicks :Seq[Tick]
+                      )
+
+case class Tick(
+                 tickerId  :Int,
+                 dDate     :LocalDate,
+                 dbTsunx   :Long,
+                 ask       :Double,
+                 bid       :Double
+               ) {
+  override def toString: String =
+    "( "+dDate+" - "+dbTsunx+" )"
+}
+/*
+case class seqTicksObj(
+                        sqTicks :Seq[Tick]
+                      )
+*/
+
 final case class CassConnectException(private val message: String = "",
                                       private val cause: Throwable = None.orNull)
   extends Exception(message, cause)
@@ -33,18 +58,60 @@ case class TickerBws(
     "CalcActor"+"_"+ticker.tickerId+"_"+bws
 }
 
-  case class RunRequest(command: String, thisTickerBws :TickerBws, lastBar :Option[Bar], respondTo: ActorRef)
-case class DoneResponse(command: String, thisTickerBws :TickerBws, lastBar :Option[Bar], sleepMsBeforeNextCalc :Int, respondTo: ActorRef)
+case class RunRequest(command: String, thisTickerBws :TickerBws,lastBar :Option[Bar], respondTo: ActorRef)
+case class DoneResponse(thisTickerBws :TickerBws,lastBar :Option[Bar], sleepMsBeforeNextCalc :Int, respondTo: ActorRef)
 
-case class Tick(
-                 tickerId  :Int,
-                 dDate     :LocalDate,
-                 dbTsunx  :Long,
-                 ask       :Double,
-                 bid       :Double
-               )
+/**
+  * Common Bar description.
+*/
+trait  Bar {
+  def ticker_id       :Int
+  def ddate           :Long
+  def ddateFromTick   :LocalDate
+  def bar_width_sec   :Int
+  def ts_begin        :Long
+  def ts_end          :Long
+  def o               :Double
+  def h               :Double
+  def l               :Double
+  def c               :Double
+  def h_body          :Double
+  def h_shad          :Double
+  def btype           :String
+  def ticks_cnt       :Int
+  def disp            :Double
+  def log_co          :Double
+  override def toString =
+    "bws ="+bar_width_sec+" [ "+ts_begin+":"+ts_end+"] ohlc=["+o+","+h+","+l+","+c+"] "+btype+"   body,shad=["+h_body+","+h_shad+"]"
+  //def getBarOutput :String = s"DDATE = $ddateFromTick TSBEGIN = $ts_begin TSEND = $ts_end TICKSCNT = $ticks_cnt"
+}
 
-class Bar (p_ticker_id : Int, p_bar_width_sec : Int, barTicks : Seq[Tick]) {
+/**
+  * Bars that we read from DB mts_bars.bars
+*/
+case class BarRead (
+                    ticker_id       :Int,
+                    ddate           :Long,
+                    ddateFromTick   :LocalDate,
+                    bar_width_sec   :Int,
+                    ts_begin        :Long,
+                    ts_end          :Long,
+                    o               :Double,
+                    h               :Double,
+                    l               :Double,
+                    c               :Double,
+                    h_body          :Double,
+                    h_shad          :Double,
+                    btype           :String,
+                    ticks_cnt       :Int,
+                    disp            :Double,
+                    log_co          :Double
+                   ) extends Bar
+
+/**
+  * Bars that we calculate from Ticks.
+*/
+class BarWitchTicks (p_ticker_id : Int, p_bar_width_sec : Int, barTicks : Seq[Tick]) extends Bar{
 
   def simpleRound4Double(valueD : Double) = {
     (valueD * 10000).round / 10000.toDouble
