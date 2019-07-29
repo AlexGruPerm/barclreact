@@ -69,8 +69,12 @@ object MainBarCalculator extends App {
   require(!sessInstance.sess.isClosed, "Cassandra session must be opened.")
 
   val system = ActorSystem("BCSystem")
+
+  val sysDispatcher = system.getDispatcher
+  log.info(s"ActorSystem Dispatcher = $sysDispatcher")
+
   log.info(s"Actor system created. startTime = ${system.startTime}")
-  val MainBcActor = system.actorOf(BarCalculatorManagerActor.props(config,sessInstance), "BCManagerActor")
+  val MainBcActor = system.actorOf(BarCalculatorManagerActor.props(config,sessInstance).withDispatcher("my-dispatcher"), "BCManagerActor")
   log.info(s"Main bar calculator Actor (BCManagerActor) created. path.name = ${MainBcActor.path.name}")
   log.info("Run BCManagerActor with sending 'calculate' message.")
   MainBcActor ! "calculate"

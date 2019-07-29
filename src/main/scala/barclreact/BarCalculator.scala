@@ -1,6 +1,8 @@
 package barclreact
 
-import org.slf4j.LoggerFactory
+import java.time.Instant
+
+import akka.event.LoggingAdapter
 
 /**
   * This class contains main logic of bar calculator:
@@ -9,47 +11,81 @@ import org.slf4j.LoggerFactory
   * 3) save bars
   * 4) return sleep interval in ms.
 */
-class BarCalculator(sess :CassSessionInstance.type, thisTickerBws :TickerBws, lastBar :Option[Bar]) {
-  val log = LoggerFactory.getLogger(getClass.getName)
-  val tickerID :Int = thisTickerBws.ticker.tickerId
-  val bws :Int = thisTickerBws.bws
-  val ticksReader = new TicksReader(sess, thisTickerBws, lastBar)
-  val readTicksRes :seqTicksWithReadDuration = ticksReader.getTicks
+class BarCalculator(sess :CassSessionInstance.type, thisTickerBws :TickerBws, lastBar :Option[Bar],log :LoggingAdapter)
+extends CommonFuncs {
+  //val log = LoggerFactory.getLogger(getClass.getName)
+  val tickerID: Int = thisTickerBws.ticker.tickerId
+  val bws: Int = thisTickerBws.bws
+  val ticksReader = new TicksReader(sess, thisTickerBws, lastBar, log)
+  val readTicksRes: seqTicksWithReadDuration = ticksReader.getTicks
   log.info(readTicksRes.getTickStat)
 
   /**
     * return tuple(Option(LastBar, sleepIntervalMs))
     * cacultae bars from read ticks readTicksRes, save it all and
     * return Option(LastBar,SleepIntervalMs)
-   */
-  def calculateBars :(Option[Bar],Int) = {
+    */
+  def calculateBars: (Option[Bar], Int) = {
     if (readTicksRes.seqTicks.isEmpty) {
-      val sleepIntEmptyTicks :Int = 3000
-      (lastBar,sleepIntEmptyTicks)
+      val sleepIntEmptyTicks: Int = 3000
+      (lastBar, sleepIntEmptyTicks)
     } else {
       val t1 = System.currentTimeMillis
-      val bars: Seq[Bar] = getCalculatedBars(tickerID, readTicksRes.seqTicks, bws * 1000L)
+      val bars: Seq[Bar] = getCalculatedBars(tickerID, readTicksRes.seqTicks, bws * 1000L, ticksReader.lastTickTs)
 
-      if (bars.nonEmpty) {
-        log.info(s" For ${thisTickerBws.getActorName} count ${bars.size} bars. dur : ${System.currentTimeMillis - t1}")
-        log.info(s" For ${thisTickerBws.getActorName} FIRSTBAR = ${bars.head}")
-        log.info(s" For ${thisTickerBws.getActorName}  LASTBAR = ${bars.last}")
-        sess.saveBars(bars)
-      } else {
-        log.info(s" For ${thisTickerBws.getActorName} EMPTY bars. dur : ${System.currentTimeMillis - t1}")
-      }
-
-      val sleepInt :Int = 3000 //todo: may be new fucntion to sparse code !!!
+      val sleepInt: Int =
+        if (bars.nonEmpty) {
+          log.info(s" For ${thisTickerBws.getActorName} count ${bars.size} bars. dur : ${System.currentTimeMillis - t1}")
+          /*
+          log.info(s" For ${thisTickerBws.getActorName} FIRSTBAR = ${bars.head}")
+          log.info(s" For ${thisTickerBws.getActorName}  LASTBAR = ${bars.last}")
+          */
+          sess.saveBars(bars)
+          getSleepForCaseNonEmptyBars(bars.last.ts_end, readTicksRes.seqTicks.last, bws, ticksReader.lastTickTs)
+        } else {
+          log.info(s" For ${thisTickerBws.getActorName} EMPTY bars. dur : ${System.currentTimeMillis - t1}")
+          getSleepForCaseEmptyBars(readTicksRes.seqTicks.head, readTicksRes.seqTicks.last, bws, ticksReader.lastTickTs)
+        }
 
       if (bars.isEmpty)
-        (lastBar,sleepInt)
+        (lastBar, sleepInt)
       else
-        (bars.lastOption,sleepInt)
+        (bars.lastOption, sleepInt)
 
     }
   }
 
-  private def getCalculatedBars(tickerId: Int, seqTicks: Seq[Tick], barDeepSec: Long): Seq[Bar] = {
+  /**
+    * Calculate sleep time for case:
+    * 1) nonEmpty read seqTicks
+    * 2) calculate bars, but there is no one bar, it means that not enough ticks data for at least one Bar.
+    * 3)
+    */
+  private def getSleepForCaseEmptyBars(firstReadTick: Tick, lastReadTick: Tick, bws: Int, commLastTickTs: Long): Int =
+    if (Instant.ofEpochMilli(commLastTickTs).atOffset(zo).getDayOfYear ==
+      Instant.ofEpochMilli(lastReadTick.dbTsunx).atOffset(zo).getDayOfYear) {
+      log.info(s" getSleepForCaseEmptyBars ")
+      Seq(bws * 1000L, (bws * 1000L - ((lastReadTick.dbTsunx - firstReadTick.dbTsunx) / 1000L))).min.toInt
+    }
+    else
+      0
+
+
+  private def getSleepForCaseNonEmptyBars(lastBarTsEnd: Long, lastReadTick: Tick, bws: Int, commLastTickTs :Long): Int =
+    if (Instant.ofEpochMilli(lastBarTsEnd).atOffset(zo).getDayOfYear ==
+        Instant.ofEpochMilli(commLastTickTs).atOffset(zo).getDayOfYear &&
+       (commLastTickTs - lastBarTsEnd)/1000L  < bws
+    )/*
+      log.info(s" getSleepForCaseNonEmptyBars DAYOFLASTBAR  = ${Instant.ofEpochMilli(lastBarTsEnd).atOffset(zo).getDayOfYear}")
+      log.info(s" getSleepForCaseNonEmptyBars DAYOFLASTTICK = ${Instant.ofEpochMilli(commLastTickTs).atOffset(zo).getDayOfYear}")
+      log.info(s" getSleepForCaseNonEmptyBars (commLastTickTs - lastBarTsEnd)/1000L = ${(commLastTickTs - lastBarTsEnd)/1000L}  <  ${bws * 1000L}")
+      */
+      Seq(bws * 1000L, (bws * 1000L - ((lastReadTick.dbTsunx - lastBarTsEnd) / 1000L))).min.toInt
+    else
+      0
+
+
+  private def getCalculatedBars(tickerId: Int, seqTicks: Seq[Tick], barDeepSec: Long, commonLastTickTs :Long): Seq[Bar] = {
     val seqBarSides :Seq[TsPoint] = seqTicks.head.dbTsunx.to(seqTicks.last.dbTsunx).by(barDeepSec)
       .zipWithIndex
       .map(TsPoint.create)

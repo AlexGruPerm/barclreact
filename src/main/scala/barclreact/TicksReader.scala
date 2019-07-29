@@ -1,8 +1,8 @@
 package barclreact
 
-import java.time.{Instant, LocalDate, ZoneOffset}
+import java.time.{Instant, LocalDate}
 
-import org.slf4j.LoggerFactory
+import akka.event.LoggingAdapter
 
 /**
   * Since the driver now has access to Java 8 types, some of the CQL to Java type mappings have changed when it comes
@@ -24,13 +24,13 @@ import org.slf4j.LoggerFactory
   * 2) if lastBar is empty than try read from firstTick otherwise from tsend.lastBar
   * 3)
 */
-class TicksReader(sess :CassSessionInstance.type, thisTickerBws :TickerBws, lastBar :Option[Bar]) {
-  private val log = LoggerFactory.getLogger(getClass.getName)
+class TicksReader(sess :CassSessionInstance.type, thisTickerBws :TickerBws, lastBar :Option[Bar], log :LoggingAdapter)
+extends CommonFuncs{
+  //private val log = LoggerFactory.getLogger(getClass.getName)
   private val tickerId :Int = thisTickerBws.ticker.tickerId
   private val bws :Int = thisTickerBws.bws
-  private val lastTickTs :Long =sess.getLastTickTs(tickerId)
+  val lastTickTs :Long =sess.getLastTickTs(tickerId)
   log.info(s"For ${thisTickerBws.getActorName} lastTick.ts = "+lastTickTs)
-  private val zo = ZoneOffset.ofHours(+3)
 
  def getTicks :seqTicksWithReadDuration = {
    if (lastTickTs == 0L) seqTicksWithReadDuration(Nil, 0L)
@@ -41,13 +41,13 @@ class TicksReader(sess :CassSessionInstance.type, thisTickerBws :TickerBws, last
           case Some (lastBar) => lastBar.ts_end
           case None => thisTickerBws.ticker.minTsSrc
         }
-      readTicksRecurs(tickerId, readFromTs, readFromTs+1, bws)
+      readTicksRecurs(tickerId, readFromTs, readFromTs + sess.readByMins*60*1000L, bws)
    } catch {
        case e: com.datastax.oss.driver.api.core.DriverTimeoutException =>
-         log.error(s"EXCEPTION: (1) DriverTimeoutException (readTicksRecurs) ${e.getMessage} ${e.getCause}")
+         log.error(s"EXCEPTION: (1) ${thisTickerBws.getActorName} DriverTimeoutException (readTicksRecurs) ${e.getMessage} ${e.getCause}")
          seqTicksWithReadDuration(Nil, 0L)
        case e: Throwable =>
-         log.error(s"EXCEPTION: (2) Throwable (readTicksRecurs) ${e.getMessage} ${e.getCause}")
+         log.error(s"EXCEPTION: (2) ${thisTickerBws.getActorName} Throwable (readTicksRecurs) ${e.getMessage} ${e.getCause}")
          seqTicksWithReadDuration(Nil, 0L)
      }
    }
@@ -90,6 +90,14 @@ class TicksReader(sess :CassSessionInstance.type, thisTickerBws :TickerBws, last
     val endYear = Instant.ofEpochMilli(tsEnd).atOffset(zo).getYear
     val endDay = Instant.ofEpochMilli(tsEnd).atOffset(zo).getDayOfYear
 
+    //todo: comment it.
+    val beginDateTime = getDateAsString(convertLongToDate(tsBegin))
+    val endDateTime = getDateAsString(convertLongToDate(tsEnd))
+
+    log.info(s"  BEGIN READ [$beginYear] tsBegin ($tsBegin) = ${beginDateTime} ")
+    log.info(s"  END READ   [$endYear] tsEnd   ($tsEnd) = ${endDateTime} ")
+    log.info(s"  INTERVAL READ (tsBegin - tsEnd) = ${(tsEnd-tsBegin)/1000L} sec. ")
+
     val seqDaysRead :Seq[LocalDate] = if (beginYear == endYear) {
       (beginDay to endDay).map(dayNum => LocalDate.ofYearDay(beginYear,dayNum))
     } else if (beginYear == (endYear-1)) {
@@ -102,7 +110,12 @@ class TicksReader(sess :CassSessionInstance.type, thisTickerBws :TickerBws, last
     val t1 = System.currentTimeMillis
     (seqTicksObj(
       seqDaysRead
-        .flatMap(readDayForRead => sess.getTicksByDateTsInterval(tickerId,readDayForRead,tsBegin,tsEnd))
+        .flatMap(readDayForRead =>
+         if (tsEnd > lastTickTs)
+           sess.getTicksByDateTsIntervalFrom(tickerId,readDayForRead,tsBegin)
+             else
+          sess.getTicksByDateTsInterval(tickerId,readDayForRead,tsBegin,tsEnd)
+        )
     )
     , System.currentTimeMillis - t1)
   }

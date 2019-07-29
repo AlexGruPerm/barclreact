@@ -13,7 +13,7 @@ libraryDependencies ++= Seq(
   "org.scala-lang" % "scala-library" % "2.12.4",
   "com.typesafe" % "config" % "1.3.4",
   "org.scalatest" %% "scalatest" % "3.0.5" % Test,
-  "com.typesafe.akka" %% "akka-actor" % "2.5.22"
+  "com.typesafe.akka" %% "akka-actor" % "2.5.23"
 )
 
 assemblyMergeStrategy in assembly := {

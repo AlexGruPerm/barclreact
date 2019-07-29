@@ -30,6 +30,17 @@ trait CassQueries {
       |  order by  ts ASC, db_tsunx ASC
       |  allow filtering """.stripMargin
 
+
+  val sqlTicksByTsIntervalONEDateFrom =
+    """ select db_tsunx,ask,bid
+      |   from mts_src.ticks
+      |  where ticker_id = :tickerId and
+      |        ddate     = :pDate and
+      |        db_tsunx >= :dbTsunxBegin
+      |  order by  ts ASC, db_tsunx ASC
+      |  allow filtering """.stripMargin
+
+
   val sqlLastBarMaxDdate =
     """ select max(ddate) as ddate
       |   from mts_bars.bars_bws_dates

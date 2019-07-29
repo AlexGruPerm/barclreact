@@ -52,6 +52,7 @@ object CassSessionInstance extends CassSession{
   private val prepLastTickDdate :BoundStatement = prepareSql(sess,sqlLastTickDdate)
   private val prepLastTickTs :BoundStatement = prepareSql(sess,sqlLastTickTs)
   private val prepTicksByTsIntervalONEDate :BoundStatement = prepareSql(sess,sqlTicksByTsIntervalONEDate)
+  private val prepTicksByTsIntervalONEDateFrom :BoundStatement = prepareSql(sess,sqlTicksByTsIntervalONEDateFrom)
   private val prepLastBarMaxDdate :BoundStatement = prepareSql(sess,sqlLastBarMaxDdate)
   private val prepLastBar :BoundStatement = prepareSql(sess,sqlLastBar)
   private val prepSaveBar :BoundStatement = prepareSql(sess,sqlSaveBar)
@@ -153,6 +154,21 @@ object CassSessionInstance extends CassSession{
     " duration = "+(System.currentTimeMillis - t1)+" ms.")
     resSeq
   }
+
+  def getTicksByDateTsIntervalFrom(tickerId :Int, readDate :LocalDate, tsBegin :Long) : Seq[Tick] = {
+    val t1 = System.currentTimeMillis
+    val dataset = sess.execute(prepTicksByTsIntervalONEDateFrom
+      .setInt("tickerId", tickerId)
+      .setLocalDate("pDate", readDate)
+      .setLong("dbTsunxBegin", tsBegin))
+
+    val resSeq :Seq[Tick] = dataset.all().iterator.asScala.toSeq.map(r => rowToSeqTicksWDate(r, tickerId, readDate))
+
+    log.info("getTicksByDateTsIntervalFrom for "+tickerId+" ("+readDate+ ") rows = "+resSeq.size+
+      " duration = "+(System.currentTimeMillis - t1)+" ms.")
+    resSeq
+  }
+
 
   private def rowToBar(row :Row) :Bar = {
      BarRead (

@@ -2,11 +2,13 @@ package barclreact
 
 import java.time.LocalDate
 
-import akka.actor.ActorRef
-
 case class seqTicksWithReadDuration(seqTicks :Seq[Tick], durationMs :Long) {
   def getTickStat :String =
-   s"SIZE = ${seqTicks.size} FISRT = ${seqTicks.head} LAST = ${seqTicks.last} WIDTH = ${(seqTicks.last.dbTsunx-seqTicks.head.dbTsunx)/1000L} sec.  DUR : $durationMs ms."
+    if (seqTicks.nonEmpty) {
+      s"SIZE = ${seqTicks.size} FISRT = ${seqTicks.head} LAST = ${seqTicks.last} WIDTH = ${(seqTicks.last.dbTsunx - seqTicks.head.dbTsunx) / 1000L} sec.  DUR : $durationMs ms."
+    } else {
+      s"SIZE = ${seqTicks.size} DUR : $durationMs ms."
+    }
 }
 
 case class seqTicksObj(
@@ -58,8 +60,8 @@ case class TickerBws(
     "CalcActor"+"_"+ticker.tickerId+"_"+bws
 }
 
-case class RunRequest(command: String, thisTickerBws :TickerBws,lastBar :Option[Bar], respondTo: ActorRef)
-case class DoneResponse(thisTickerBws :TickerBws,lastBar :Option[Bar], sleepMsBeforeNextCalc :Int, respondTo: ActorRef)
+case class RunRequest(command: String, thisTickerBws :TickerBws,lastBar :Option[Bar])
+case class DoneResponse(thisTickerBws :TickerBws,lastBar :Option[Bar], sleepMsBeforeNextCalc :Int)
 
 /**
   * Common Bar description.
@@ -175,5 +177,3 @@ class BarWitchTicks (p_ticker_id : Int, p_bar_width_sec : Int, barTicks : Seq[Ti
     "[ "+ts_begin+":"+ts_end+"] ohlc=["+o+","+h+","+l+","+c+"] "+btype+"   body,shad=["+h_body+","+h_shad+"]"
 
 }
-
-
