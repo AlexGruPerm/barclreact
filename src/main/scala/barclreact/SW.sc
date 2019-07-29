@@ -1,3 +1,9 @@
+
+val r :Int = 29971
+
+val rd2 = r/2
+
+/*
 import java.time.{Instant, LocalDate, ZoneOffset}
 
 val tsBegin: Long=1562619600133L
@@ -21,6 +27,6 @@ if (beginYear == endYear) {
   Seq(LocalDate.ofYearDay(beginYear, beginDay))
 }
 
-
+*/
 
   //.foreach(println)

@@ -25,7 +25,7 @@ class BarCalculatorManagerActor(config :Config, sess :CassSessionInstance.type) 
       val seqTickerBws :Seq[TickerBws] = sess.getTickersWithBws
       processTickers(sender,seqTickerBws)
     }
-    //responses from child actors.
+    //responses from child actors - never receive it because loop messages inside child.
     case DoneResponse(tickerBws, lastBar, sleepMsBeforeNextCalc) => {
       log.info(s"mes: 'done' from ${tickerBws.getActorName} wants sleep $sleepMsBeforeNextCalc ms = ${sleepMsBeforeNextCalc/1000L} seconds. ")
       /*
