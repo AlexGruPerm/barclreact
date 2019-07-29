@@ -2,7 +2,6 @@ package barclreact
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
-import barclreact.MainBarCalculator.system
 import com.typesafe.config.Config
 
 
@@ -11,7 +10,6 @@ import com.typesafe.config.Config
   *  Created and called by message "calculate" from Main app.
   */
 class BarCalculatorManagerActor(config :Config, sess :CassSessionInstance.type) extends Actor {
-  implicit val blockingDispatcher = system.dispatchers.lookup("my-dispatcher")
   val log = Logging(context.system, this)
   log.info("Basic constructor of Actor BarCalculatorManagerActor.")
   /**
@@ -30,12 +28,10 @@ class BarCalculatorManagerActor(config :Config, sess :CassSessionInstance.type) 
     //responses from child actors.
     case DoneResponse(tickerBws, lastBar, sleepMsBeforeNextCalc) => {
       log.info(s"mes: 'done' from ${tickerBws.getActorName} wants sleep $sleepMsBeforeNextCalc ms = ${sleepMsBeforeNextCalc/1000L} seconds. ")
-
       /*
       ActorSystem("BCSystem").scheduler
         .scheduleOnce(sleepMsBeforeNextCalc.millisecond, sender(), RunRequest("calc", tickerBws, lastBar))
       */
-
       log.info("===============================================================================")
     }
     case _ => log.info(getClass.getName +" Unknown message from ["+sender.path.name+"]")
@@ -43,15 +39,13 @@ class BarCalculatorManagerActor(config :Config, sess :CassSessionInstance.type) 
 
 
     def processTickers(sender :ActorRef, seqTickers :Seq[TickerBws]) :Unit =
-      //seqTickers.withFilter(t => t.ticker.tickerId == 1 && Seq(30,60,300,600,1800,3600).contains(t.bws)) //todo: manual filter here -------------------------------
       //scala.util.Random.shuffle(seqTickers)
       seqTickers
-        .filter(t => /*Seq(1,2,3,4).contains(t.ticker.tickerId) &&*/ Seq(30/*,60,300,600,1800,3600*/).contains(t.bws))
+        //.filter(t => Seq(1,2,3,4).contains(t.ticker.tickerId) && Seq(30,60,300,600,1800,3600).contains(t.bws))
         .sortBy(st => st.bws)(Ordering[Int].reverse)
         .foreach{thisTickerBws =>
           log.info("Creation Actor for "+thisTickerBws.ticker.tickerCode+" bws = "+thisTickerBws.bws)
-          //Thread.sleep(200)
-          val thisCalcActor = context.actorOf(CalcActor.props(sess).withDispatcher("my-dispatcher"),
+          val thisCalcActor = context.actorOf(CalcActor.props(sess),
             thisTickerBws.getActorName)
           thisCalcActor ! RunRequest("run",thisTickerBws,None)
       }

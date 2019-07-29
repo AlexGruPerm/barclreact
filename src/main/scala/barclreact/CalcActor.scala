@@ -2,13 +2,12 @@ package barclreact
 
 import akka.actor.{Actor, Props, Timers}
 import akka.event.Logging
-import barclreact.MainBarCalculator.system
+
 import scala.concurrent.duration._
 //import scala.collection.JavaConverters._
 //import scala.concurrent.duration._
 
 class CalcActor(sess :CassSessionInstance.type) extends Actor with Timers {
-  implicit val blockingDispatcher = system.dispatchers.lookup("my-dispatcher")
   val log = Logging(context.system, this)
 
   def logCommands(command :String, tickerBws :TickerBws) ={
@@ -40,11 +39,10 @@ class CalcActor(sess :CassSessionInstance.type) extends Actor with Timers {
       val (lastCalcBarThisIter :Option[Bar],sleepMsBeforeNextCalc :Int) = barCalculatorInstance.calculateBars
       log.info(s"Now ${tickerBws.getActorName} will sleep $sleepMsBeforeNextCalc ms.")
       val uuid = java.util.UUID.randomUUID
-      timers.startSingleTimer(uuid, RunRequest(command, tickerBws, lastCalcBarThisIter), sleepMsBeforeNextCalc.millis)
+      timers.startSingleTimer(uuid, RunRequest("calc", tickerBws, lastCalcBarThisIter), sleepMsBeforeNextCalc.millis)
 
       //val sleepMsBeforeNextCalc :Int = 3000
       //sender() ! DoneResponse(tickerBws,lastCalcBarThisIter,sleepMsBeforeNextCalc)
-
     }
   }
 
