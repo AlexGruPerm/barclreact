@@ -39,10 +39,13 @@ class CalcActor(sess :CassSessionInstance.type) extends Actor with Timers {
       val (lastCalcBarThisIter :Option[Bar],sleepMsBeforeNextCalc :Int) = barCalculatorInstance.calculateBars
 
 
-      val msWillSleep :Int = if (tickerBws.bws <= 60) {
+      val msWillSleep :Int =  (sleepMsBeforeNextCalc/2)
+      /*
+      if (tickerBws.bws <= 60) {
         (sleepMsBeforeNextCalc/2)
       } else
         sleepMsBeforeNextCalc
+      */
 
       log.info(s"Now ${tickerBws.getActorName} will sleep $msWillSleep ms.")
       val uuid = java.util.UUID.randomUUID

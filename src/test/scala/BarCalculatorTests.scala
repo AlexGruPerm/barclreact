@@ -1,8 +1,10 @@
+/*
 import org.scalatest.FunSuite
 import org.slf4j.LoggerFactory
 
 class BarCalculatorTests extends FunSuite {
   val logger = LoggerFactory.getLogger(getClass.getName)
+  */
 
 /*
   test("1. CassConnect.getSession Correct IP") {
@@ -44,4 +46,4 @@ class BarCalculatorTests extends FunSuite {
 */
 
 
-}
+//}
