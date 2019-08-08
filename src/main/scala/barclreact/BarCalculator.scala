@@ -43,9 +43,11 @@ extends CommonFuncs {
           sess.saveBars(bars)
           getSleepForCaseNonEmptyBars(bars.last.ts_end, readTicksRes.seqTicks.last, bws, ticksReader.lastTickTs)
         } else {
-          log.info(s" For ${thisTickerBws.getActorName} EMPTY bars. dur : ${System.currentTimeMillis - t1}")
-          getSleepForCaseEmptyBars(readTicksRes.seqTicks.head, readTicksRes.seqTicks.last, bws, ticksReader.lastTickTs)
+           log.info(s" For ${thisTickerBws.getActorName} EMPTY bars. dur : ${System.currentTimeMillis - t1}")
+           getSleepForCaseEmptyBars(readTicksRes.seqTicks.head, readTicksRes.seqTicks.last, bws, ticksReader.lastTickTs)
         }
+
+      log.info("----------- from calculateBars   return for sleep = "+sleepInt)
 
       if (bars.isEmpty)
         (lastBar, sleepInt)
@@ -62,25 +64,23 @@ extends CommonFuncs {
     * 3)
     */
   private def getSleepForCaseEmptyBars(firstReadTick: Tick, lastReadTick: Tick, bws: Int, commLastTickTs: Long): Int =
+    //todo : replace this comparison into fucnc. Not readable.
     if (Instant.ofEpochMilli(commLastTickTs).atOffset(zo).getDayOfYear ==
-      Instant.ofEpochMilli(lastReadTick.dbTsunx).atOffset(zo).getDayOfYear) {
-      log.info(s" getSleepForCaseEmptyBars ")
-      Seq(bws * 1000L, (bws * 1000L - ((lastReadTick.dbTsunx - firstReadTick.dbTsunx) / 1000L))).min.toInt
+        Instant.ofEpochMilli(lastReadTick.dbTsunx).atOffset(zo).getDayOfYear) {
+      val seqTickLastFirst :Long = (lastReadTick.dbTsunx - firstReadTick.dbTsunx) / 1000L
+      Seq(bws*1000L, (bws - seqTickLastFirst)*1000L).min.toInt
     }
     else
       0
 
 
   private def getSleepForCaseNonEmptyBars(lastBarTsEnd: Long, lastReadTick: Tick, bws: Int, commLastTickTs :Long): Int =
+  //todo : replace this comparison into fucnc. Not readable.
     if (Instant.ofEpochMilli(lastBarTsEnd).atOffset(zo).getDayOfYear ==
         Instant.ofEpochMilli(commLastTickTs).atOffset(zo).getDayOfYear &&
        (commLastTickTs - lastBarTsEnd)/1000L  < bws
-    )/*
-      log.info(s" getSleepForCaseNonEmptyBars DAYOFLASTBAR  = ${Instant.ofEpochMilli(lastBarTsEnd).atOffset(zo).getDayOfYear}")
-      log.info(s" getSleepForCaseNonEmptyBars DAYOFLASTTICK = ${Instant.ofEpochMilli(commLastTickTs).atOffset(zo).getDayOfYear}")
-      log.info(s" getSleepForCaseNonEmptyBars (commLastTickTs - lastBarTsEnd)/1000L = ${(commLastTickTs - lastBarTsEnd)/1000L}  <  ${bws * 1000L}")
-      */
-      Seq(bws * 1000L, (bws * 1000L - ((lastReadTick.dbTsunx - lastBarTsEnd) / 1000L))).min.toInt
+    )
+      Seq(bws * 1000L, (bws - ((lastReadTick.dbTsunx - lastBarTsEnd) / 1000L)*1000L)).min.toInt
     else
       0
 

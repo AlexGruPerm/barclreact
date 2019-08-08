@@ -28,7 +28,7 @@ class CalcActor(sess :CassSessionInstance.type) extends Actor with Timers {
         else
           lastBar
 
-      log.info(s" '$command' for ${tickerBws.getActorName} LAST_BAR = ${usingThisLastBar}")
+      //log.info(s" '$command' for ${tickerBws.getActorName} LAST_BAR = ${usingThisLastBar}")
 
       // lastBar=None for run and Some for calc.
       val barCalculatorInstance = new BarCalculator(sess, tickerBws, usingThisLastBar, log)
@@ -37,17 +37,13 @@ class CalcActor(sess :CassSessionInstance.type) extends Actor with Timers {
         * And it returns Option(Last calculated Bar)
       */
       val (lastCalcBarThisIter :Option[Bar],sleepMsBeforeNextCalc :Int) = barCalculatorInstance.calculateBars
+      val msWillSleep :Int = sleepMsBeforeNextCalc-1// (sleepMsBeforeNextCalc/2)
 
-
-      val msWillSleep :Int =  (sleepMsBeforeNextCalc/2)
-      /*
-      if (tickerBws.bws <= 60) {
-        (sleepMsBeforeNextCalc/2)
-      } else
-        sleepMsBeforeNextCalc
-      */
-
+      log.info("-----------------------------------------")
+      log.info("  ")
       log.info(s"Now ${tickerBws.getActorName} will sleep $msWillSleep ms.")
+      log.info("  ")
+      log.info("-----------------------------------------")
       val uuid = java.util.UUID.randomUUID
       timers.startSingleTimer(uuid, RunRequest("calc", tickerBws, lastCalcBarThisIter), msWillSleep.millis)
 

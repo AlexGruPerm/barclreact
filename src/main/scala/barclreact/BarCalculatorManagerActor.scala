@@ -37,17 +37,28 @@ class BarCalculatorManagerActor(config :Config, sess :CassSessionInstance.type) 
     case _ => log.info(getClass.getName +" Unknown message from ["+sender.path.name+"]")
   }
 
+    def pauseBetweenRunactors(bws :Int) : Int ={
+      bws match {
+        case v if v>=3600 => 10000 //ms.
+        case v if v>=1800 => 5000
+        case v if v>=600  => 3000
+        case v if v>=300  => 1500
+        case v if v>=60   => 1000
+        case _            => 500
+      }
+    }
 
     def processTickers(sender :ActorRef, seqTickers :Seq[TickerBws]) :Unit =
       //scala.util.Random.shuffle(seqTickers)
       seqTickers
         //run it outside mts and check cpu usage in and out.
-        //.filter(t => Seq(1,2,3,4,5).contains(t.ticker.tickerId)) //&& Seq(30,60,300,600,1800,3600).contains(t.bws))
+        //.filter(t => Seq(9).contains(t.ticker.tickerId) && Seq(30).contains(t.bws))
         .sortBy(st => st.bws)(Ordering[Int].reverse)
         .foreach{thisTickerBws =>
           log.info("Creation Actor for "+thisTickerBws.ticker.tickerCode+" bws = "+thisTickerBws.bws)
           val thisCalcActor = context.actorOf(CalcActor.props(sess),
             thisTickerBws.getActorName)
+          Thread.sleep(pauseBetweenRunactors(thisTickerBws.bws))
           thisCalcActor ! RunRequest("run",thisTickerBws,None)
       }
 
