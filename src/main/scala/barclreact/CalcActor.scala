@@ -37,7 +37,12 @@ class CalcActor(sess :CassSessionInstance.type) extends Actor with Timers {
         * And it returns Option(Last calculated Bar)
       */
       val (lastCalcBarThisIter :Option[Bar],sleepMsBeforeNextCalc :Int) = barCalculatorInstance.calculateBars
-      val msWillSleep :Int = sleepMsBeforeNextCalc-1// (sleepMsBeforeNextCalc/2)
+      val msWillSleep :Int = if (sleepMsBeforeNextCalc > 0)
+        sleepMsBeforeNextCalc-1
+      else
+        barCalculatorInstance.bws*1000
+
+
 
       log.info("-----------------------------------------")
       log.info("  ")
