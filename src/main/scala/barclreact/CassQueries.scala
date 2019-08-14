@@ -27,8 +27,8 @@ trait CassQueries {
       |        ddate     = :pDate and
       |        db_tsunx >= :dbTsunxBegin and
       |        db_tsunx <= :dbTsunxEnd
-      |  order by  ts ASC, db_tsunx ASC
       |  allow filtering """.stripMargin
+  //  order by  ts ASC, db_tsunx ASC
 
 
   val sqlTicksByTsIntervalONEDateFrom =
@@ -37,8 +37,8 @@ trait CassQueries {
       |  where ticker_id = :tickerId and
       |        ddate     = :pDate and
       |        db_tsunx >= :dbTsunxBegin
-      |  order by  ts ASC, db_tsunx ASC
       |  allow filtering """.stripMargin
+  //  order by  ts ASC, db_tsunx ASC
 
 
   val sqlLastBarMaxDdate =

@@ -94,8 +94,10 @@ extends CommonFuncs{
     val beginDateTime = getDateAsString(convertLongToDate(tsBegin))
     val endDateTime = getDateAsString(convertLongToDate(tsEnd))
 
+    /*
     log.info(s"  BEGIN READ [$beginYear] tsBegin ($tsBegin) = ${beginDateTime} ")
     log.info(s"  END READ   [$endYear] tsEnd   ($tsEnd) = ${endDateTime} ")
+    */
     log.info(s"  INTERVAL READ (tsBegin - tsEnd) = ${(tsEnd-tsBegin)/1000L} sec. ")
 
     val seqDaysRead :Seq[LocalDate] = if (beginYear == endYear) {

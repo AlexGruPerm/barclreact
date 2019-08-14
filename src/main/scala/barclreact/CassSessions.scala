@@ -149,9 +149,11 @@ object CassSessionInstance extends CassSession{
       .setLong("dbTsunxEnd", tsEnd))
 
     val resSeq :Seq[Tick] = dataset.all().iterator.asScala.toSeq.map(r => rowToSeqTicksWDate(r, tickerId, readDate))
-
+        .sortBy(elm => elm.dbTsunx)
+    /*
     log.info("getTicksByDateTsInterval for "+tickerId+" ("+readDate+ ") rows = "+resSeq.size+
     " duration = "+(System.currentTimeMillis - t1)+" ms.")
+    */
     resSeq
   }
 
@@ -163,9 +165,11 @@ object CassSessionInstance extends CassSession{
       .setLong("dbTsunxBegin", tsBegin))
 
     val resSeq :Seq[Tick] = dataset.all().iterator.asScala.toSeq.map(r => rowToSeqTicksWDate(r, tickerId, readDate))
-
+      .sortBy(elm => elm.dbTsunx)
+/*
     log.info("getTicksByDateTsIntervalFrom for "+tickerId+" ("+readDate+ ") rows = "+resSeq.size+
       " duration = "+(System.currentTimeMillis - t1)+" ms.")
+    */
     resSeq
   }
 

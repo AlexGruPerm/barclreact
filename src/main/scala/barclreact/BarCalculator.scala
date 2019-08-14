@@ -18,7 +18,10 @@ extends CommonFuncs {
   val bws: Int = thisTickerBws.bws
   val ticksReader = new TicksReader(sess, thisTickerBws, lastBar, log)
   val readTicksRes: seqTicksWithReadDuration = ticksReader.getTicks
-  log.info(readTicksRes.getTickStat)
+
+
+  log.info(thisTickerBws.getActorName+" "+readTicksRes.getTickStat)
+
 
   /**
     * return tuple(Option(LastBar, sleepIntervalMs))

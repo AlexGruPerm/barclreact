@@ -19,12 +19,12 @@ class CalcActor(sess :CassSessionInstance.type) extends Actor with Timers {
 
   override def receive: Receive = {
     case RunRequest(command, tickerBws, lastBar) => {
-      require(!(command == "calc" && lastBar == None) ,
+      require(!(command == "calc" && lastBar == None),
         "Command 'calc' and last bar is None. It's no possible case of logic.")
-      logCommands(command,tickerBws)
+      logCommands(command, tickerBws)
 
-      val usingThisLastBar :Option[Bar] =
-        if (command=="run") sess.getLastBar(tickerBws)
+      val usingThisLastBar: Option[Bar] =
+        if (command == "run") sess.getLastBar(tickerBws)
         else
           lastBar
 
@@ -35,12 +35,18 @@ class CalcActor(sess :CassSessionInstance.type) extends Actor with Timers {
       /**
         * Call calculateBars for read ticks, bars calculation and saving.
         * And it returns Option(Last calculated Bar)
-      */
-      val (lastCalcBarThisIter :Option[Bar],sleepMsBeforeNextCalc :Int) = barCalculatorInstance.calculateBars
-      val msWillSleep :Int = if (sleepMsBeforeNextCalc > 0)
-        Seq(tickerBws.bws*1000, sleepMsBeforeNextCalc-1).min
-      else
-        Seq(tickerBws.bws*1000, ((-1*sleepMsBeforeNextCalc)-1)).min
+        */
+      val (lastCalcBarThisIter: Option[Bar], sleepMsBeforeNextCalc: Int) = barCalculatorInstance.calculateBars
+
+      val msWillSleep: Int =
+        if (tickerBws.bws <= 600) {
+          tickerBws.bws * 1000
+        } else {
+          if (sleepMsBeforeNextCalc > 0)
+            Seq(tickerBws.bws * 1000, sleepMsBeforeNextCalc - 1).min
+          else
+            Seq(tickerBws.bws * 1000, ((-1 * sleepMsBeforeNextCalc) - 1)).min
+        }
 
       log.info("-----------------------------------------")
       log.info("  ")

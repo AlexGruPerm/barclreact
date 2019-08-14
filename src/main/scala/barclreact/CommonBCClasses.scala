@@ -4,11 +4,15 @@ import java.time.LocalDate
 
 case class seqTicksWithReadDuration(seqTicks :Seq[Tick], durationMs :Long) {
   def getTickStat :String =
+      s"SIZE = ${seqTicks.size} DUR : $durationMs ms."
+  /*
+  def getTickStat :String =
     if (seqTicks.nonEmpty) {
       s"SIZE = ${seqTicks.size} FISRT = ${seqTicks.head} LAST = ${seqTicks.last} WIDTH = ${(seqTicks.last.dbTsunx - seqTicks.head.dbTsunx) / 1000L} sec.  DUR : $durationMs ms."
     } else {
       s"SIZE = ${seqTicks.size} DUR : $durationMs ms."
     }
+  */
 }
 
 case class seqTicksObj(

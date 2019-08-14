@@ -39,12 +39,12 @@ class BarCalculatorManagerActor(config :Config, sess :CassSessionInstance.type) 
 
     def pauseBetweenRunactors(bws :Int) : Int ={
       bws match {
-        case v if v>=3600 => 10000 //ms.
-        case v if v>=1800 => 5000
-        case v if v>=600  => 3000
-        case v if v>=300  => 1500
-        case v if v>=60   => 1000
-        case _            => 500
+        case v if v>=3600 => 5000 //ms.
+        case v if v>=1800 => 2500
+        case v if v>=600  => 1600
+        case v if v>=300  => 1000
+        case v if v>=60   => 500
+        case _            => 250
       }
     }
 
@@ -52,7 +52,7 @@ class BarCalculatorManagerActor(config :Config, sess :CassSessionInstance.type) 
       //scala.util.Random.shuffle(seqTickers)
       seqTickers
         //run it outside mts and check cpu usage in and out.
-        //.filter(t => Seq(9).contains(t.ticker.tickerId) && Seq(30).contains(t.bws))
+        //.filter(t => /*Seq(9).contains(t.ticker.tickerId) &&*/ Seq(30).contains(t.bws))
         .sortBy(st => st.bws)(Ordering[Int].reverse)
         .foreach{thisTickerBws =>
           log.info("Creation Actor for "+thisTickerBws.ticker.tickerCode+" bws = "+thisTickerBws.bws)
