@@ -1,5 +1,4 @@
 name := "barclreact"
-//scalaVersion := "2.12.4"
 version := "1.0"
 
 resolvers += Resolver.sonatypeRepo("snapshots")
@@ -11,24 +10,11 @@ resolvers ++= Seq(
 )
 */
 
-//libraryDependencies += guice
 libraryDependencies += "com.datastax.oss" % "java-driver-core" % "4.0.1"
 libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.3.0-alpha4"
 libraryDependencies +="com.typesafe" % "config" % "1.3.4"
-//libraryDependencies +="org.scalatest" %% "scalatest" % "3.0.5" % Test
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % "test"
 libraryDependencies +=  "com.typesafe.akka" %% "akka-actor" % "2.5.23"
-
-/*
-libraryDependencies ++= Seq(
-  "com.datastax.oss" % "java-driver-core" % "4.0.1",
-  "ch.qos.logback" % "logback-classic" % "1.3.0-alpha4",
-  //"org.scala-lang" % "scala-library" % "2.12.4",
-  "org.scala-lang" % "scala-library" % "2.13.0",
-  "com.typesafe" % "config" % "1.3.4",
-  "org.scalatest" %% "scalatest" % "3.0.5" % Test,
-  "com.typesafe.akka" %% "akka-actor" % "2.5.23"
-)
-*/
 
 assemblyMergeStrategy in assembly := {
   case PathList("META-INF", xs @ _*) => MergeStrategy.discard
