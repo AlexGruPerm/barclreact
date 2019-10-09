@@ -234,7 +234,7 @@ class CassSessionInstance extends CassSession {
   tickerID,
   barWidthSec,
   faLastDate.orElse (barMinDate),
-  10)
+  1000)
 
   println (s"seqBars.size = ${seqBars.size} ")
 
