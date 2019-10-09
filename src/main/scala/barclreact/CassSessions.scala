@@ -7,7 +7,7 @@ import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.{BatchStatement, BoundStatement, DefaultBatchType, Row}
 import com.typesafe.config.{Config, ConfigFactory}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import org.slf4j.LoggerFactory
 
 trait CassSession extends CassQueries {
